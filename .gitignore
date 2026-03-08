@@ -1,0 +1,5 @@
+backups/
+tunes/
+tuner_log.jsonl
+__pycache__/
+*.pyc
