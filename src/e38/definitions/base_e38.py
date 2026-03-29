@@ -113,7 +113,7 @@ _p("Torque Reduction 5-6 Shift", "Torque", 0x1408, "uint16", 0.1, 0, "%", 0, 100
    "Torque reduction during 5-6 shift")
 
 # --- Transmission ---
-_p("TCC Lock Min Temp", "Transmission", 0x1500, "uint16", 0.1, 0, "°F", 50, 250,
+_p("TCC Lock Min Temp", "Transmission", 0x1500, "uint16", 0.1, 0, "°F", 0, 250,
    "Minimum coolant temp for TCC lockup")
 _p("TCC Slip Target", "Transmission", 0x1510, "uint16", 1, 0, "RPM", 0, 200,
    "Target TCC slip RPM when locked")

@@ -450,6 +450,7 @@ class TuningScreen(Screen):
         Binding("escape", "go_back", "Back"),
         Binding("s", "save_file", "Save .bin"),
         Binding("w", "write_ecu", "Write ECU"),
+        Binding("p", "apply_preset", "Preset"),
         Binding("f", "show_diff", "Show Changes"),
         Binding("r", "revert", "Revert All"),
         Binding("t", "edit_tables", "Tables"),
@@ -470,6 +471,7 @@ class TuningScreen(Screen):
         with Horizontal(id="tuning-footer"):
             yield Button("Save .bin [S]", id="btn-save", variant="primary")
             yield Button("Write ECU [W]", id="btn-write", variant="error")
+            yield Button("Preset [P]", id="btn-preset", variant="success")
             yield Button("Tables [T]", id="btn-tables", variant="default")
             yield Button("DTCs [D]", id="btn-dtcs", variant="default")
             yield Button("Changes [F]", id="btn-diff", variant="default")
@@ -583,6 +585,10 @@ class TuningScreen(Screen):
     @on(Button.Pressed, "#btn-write")
     def action_write_ecu(self):
         self.app.push_screen(WriteFlashScreen())
+
+    @on(Button.Pressed, "#btn-preset")
+    def action_apply_preset(self):
+        self.app.push_screen(PresetScreen())
 
     @on(Button.Pressed, "#btn-tables")
     def action_edit_tables(self):
@@ -845,6 +851,51 @@ class DTCScreen(Screen):
         self._refresh_dtcs()
 
 
+class PresetScreen(Screen):
+    """Apply a tuning preset."""
+
+    BINDINGS = [Binding("escape", "app.pop_screen", "Back")]
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll():
+            yield Static("[bold]Tuning Presets[/bold]\n")
+            yield Button(
+                "LS 6.0 HD → VTC 4800 Manual Swap",
+                id="btn-preset-ls-manual",
+                variant="success",
+            )
+            yield Static(
+                "\n[dim]Applies: VATS off, emissions off, manual trans setup,\n"
+                "rev/speed limits, idle, fans, fuel, spark, DTCs — all in one click[/dim]",
+            )
+            yield Static("", id="preset-result")
+            yield RichLog(id="preset-log", highlight=True, markup=True)
+        yield Footer()
+
+    @on(Button.Pressed, "#btn-preset-ls-manual")
+    def apply_ls_manual(self):
+        result = self.query_one("#preset-result", Static)
+        log_widget = self.query_one("#preset-log", RichLog)
+
+        try:
+            from ..presets.ls_swap_manual import apply as apply_preset
+
+            result.update("[yellow]Applying LS 6.0 HD manual swap preset...[/yellow]")
+            changes = apply_preset(self.app.editor)
+
+            for line in changes:
+                log_widget.write(line)
+
+            result.update(
+                "[bold green]PRESET APPLIED![/bold green]\n"
+                "Review changes, then Save or Write to ECU."
+            )
+
+        except Exception as e:
+            result.update(f"[red]Preset failed: {e}[/red]")
+
+
 class DiffScreen(Screen):
     """Show all changes made to calibration."""
 
@@ -1078,16 +1129,20 @@ class E38TunerApp(App):
         Binding("?", "help", "Help"),
     ]
 
-    def __init__(self, bin_file=None, demo=False, **kwargs):
+    def __init__(self, bin_file=None, demo=False, preset=None, **kwargs):
         super().__init__(**kwargs)
         self.editor = None
         self.ecu_info = {}
         self._j2534 = None
         self._gmlan = None
+        self._obdlink = None
+        self._connection_type = None
         self._j2534_devices = []
+        self._bt_ports = []
         self._backup_list = []
         self.loaded_file = bin_file
         self._demo = demo
+        self._preset = preset
 
     def on_mount(self):
         if self._demo:
