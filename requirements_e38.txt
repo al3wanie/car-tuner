@@ -1,0 +1,5 @@
+textual>=0.47.0
+rich>=13.0.0
+python-can>=4.3.0
+can-isotp>=2.0.0
+pyserial>=3.5
